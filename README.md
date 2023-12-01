@@ -1,4 +1,4 @@
-# My solutions of [EOPL]
+# My solutions of EOPL
 
 my solutions of [EOPL](https://eopl3.com/)
 
