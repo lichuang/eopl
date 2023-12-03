@@ -10,9 +10,19 @@
 
 (define push (lambda (stack n) (cons n stack)))
 
-(define pop (lambda (stack) (cdr stack)))
+(define pop (lambda (stack)
+  (cond
+    [(empty-stack? stack) (printf "cannot pop an empty stack\n")]
+    [else (cdr stack)]
+  )
+))
 
-(define top (lambda (stack) (car stack)))
+(define top (lambda (stack) 
+  (cond
+    [(empty-stack? stack) (printf "cannot top an empty stack\n")]
+    [else (car stack)]
+  )
+))
 
 ;; (2 1)
 (define stack (push (push empty-stack 1) 2))
@@ -20,6 +30,12 @@ stack
 
 ;; (1)
 (pop stack)
+
+;; "cannot pop an empty stack"
+(pop empty-stack)
+
+;; "cannot top an empty stack"
+(top empty-stack)
 
 ;; 2
 (top stack)
