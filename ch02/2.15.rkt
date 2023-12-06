@@ -6,7 +6,7 @@ Exercise 2.15 [*] Implement the lambda-calculus expression interface for the rep
 
 (define var-exp
   (lambda (var)
-    `(var-exp, var)
+    (cons 'var-exp var)
 ))
 
 (define var-exp?
@@ -23,7 +23,7 @@ Exercise 2.15 [*] Implement the lambda-calculus expression interface for the rep
 
 (define lambda-exp
   (lambda (var lc-exp)
-    `(lambda-exp,var,lc-exp)
+    (list 'lambda-exp var lc-exp)
 ))
 
 (define lambda-exp?
@@ -41,13 +41,13 @@ Exercise 2.15 [*] Implement the lambda-calculus expression interface for the rep
 (define lambda-exp->body
   (lambda (lc-exp)
     (cond
-      [(lambda-exp? lc-exp) (cdr (cdr lc-exp))]
+      [(lambda-exp? lc-exp) (caddr lc-exp)]
       [else (printf "~s isnot lambda-exp" lc-exp)])
 ))
 
 (define app-exp
   (lambda (lc-exp1 lc-exp2)
-    `(app-exp,lc-exp1,lc-exp2)
+    (list 'app-exp lc-exp1 lc-exp2)
 ))
 
 (define app-exp?
@@ -65,7 +65,7 @@ Exercise 2.15 [*] Implement the lambda-calculus expression interface for the rep
 (define app-exp->rand
   (lambda (lc-exp)
     (cond
-      [(app-exp? lc-exp) (cdr (cdr lc-exp))]
+      [(app-exp? lc-exp) (caddr lc-exp)]
       [else (printf "~s isnot app-exp" lc-exp)]
 )))
 
@@ -80,7 +80,7 @@ Exercise 2.15 [*] Implement the lambda-calculus expression interface for the rep
 (lambda-exp? lambda-exp-b)
 ;; "a"
 (lambda-exp->bound-var lambda-exp-b)
-;; '((var-exp "a"))
+;; '(var-exp "a")
 (lambda-exp->body lambda-exp-b)
 
 (define app-exp-c (app-exp var-exp-a lambda-exp-b))
@@ -88,5 +88,5 @@ Exercise 2.15 [*] Implement the lambda-calculus expression interface for the rep
 (app-exp? app-exp-c)
 ;; '(var-exp "a")
 (app-exp->rator app-exp-c)
-;; '((lambda-exp "a" (var-exp "a")))
+;; '(lambda-exp "a" (var-exp "a"))
 (app-exp->rand app-exp-c)
