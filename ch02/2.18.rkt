@@ -36,4 +36,50 @@ The procedure move-to-right should fail if its argument is at the right end of t
 and the procedure move-to-left should fail if its argument is at the left end of the sequence.
 |#
 
-;;todo
+(define number->sequence (lambda (val)
+    (list val '() '())
+))
+
+(define current-element (lambda (seq)
+    (car seq)
+))
+
+(define move-to-right (lambda (seq)
+    (list (caaddr seq) 
+          (cons (car seq) (cadr seq))
+          (cdaddr seq))
+))
+
+(define move-to-left (lambda (seq)
+    (list (caadr seq) 
+          (cdadr seq) 
+          (cons (car seq) (caddr seq)))
+))
+
+(define insert-to-left (lambda (val seq)
+    (list (car seq) 
+          (cons val (cadr seq))
+          (caddr seq))
+))
+
+(define insert-to-right (lambda (val seq)
+    (list (car seq) 
+          (cadr seq)
+          (cons val (caddr seq)))
+))
+
+;; > (insert-to-left 13 '(6 (5 4 3 2 1) (7 8 9)))
+;; (6 (13 5 4 3 2 1) (7 8 9))
+(insert-to-left 13 '(6 (5 4 3 2 1) (7 8 9)))
+
+;; > (insert-to-right 13 '(6 (5 4 3 2 1) (7 8 9)))
+;; (6 (5 4 3 2 1) (13 7 8 9))
+(insert-to-right 13 '(6 (5 4 3 2 1) (7 8 9)))
+
+;; > (move-to-left '(6 (5 4 3 2 1) (7 8 9)))
+;; (5 (4 3 2 1) (6 7 8 9))
+(move-to-left '(6 (5 4 3 2 1) (7 8 9)))
+
+;; > (move-to-right '(6 (5 4 3 2 1) (7 8 9)))
+;; (7 (6 5 4 3 2 1) (8 9))
+(move-to-right '(6 (5 4 3 2 1) (7 8 9)))
