@@ -1,7 +1,7 @@
 #lang eopl
 
 #|
-Exercise 2.23 [*] Here is a deﬁnition of binary trees using define-datatype. 
+Exercise 2.24 [*] Here is a deﬁnition of binary trees using define-datatype. 
   (define-datatype bintree bintree?
     (leaf-node (num integer?)) 
     (interior-node 
