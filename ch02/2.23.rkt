@@ -7,3 +7,4 @@ Exercise 2.23 [*] The deﬁnition of lc-exp ignores the condition in deﬁnition
   even ones you deﬁne.
 |#
 
+;;todo

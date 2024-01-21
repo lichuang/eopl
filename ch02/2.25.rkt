@@ -37,7 +37,7 @@ Exercise 2.25 [**] Use cases to write max-interior, which takes a binary tree of
 (define max-interior (lambda (tree)
   (cases bintree tree
     (leaf-node (num)
-      'none)
+      (eopl:error 'max-interior "~s is not an interior node" tree))
     (interior-node (key left right)
       (let ([left-sum (tree-sum left)]
             [right-sum (tree-sum right)])
@@ -57,5 +57,5 @@ Exercise 2.25 [**] Use cases to write max-interior, which takes a binary tree of
 ;; foo
 (display (max-interior tree-2))
 
-;; baz
+;; bar
 (display (max-interior tree-3))
