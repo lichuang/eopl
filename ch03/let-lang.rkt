@@ -114,6 +114,11 @@
       [let-exp (id exp body) 
         (let ([val (value-of exp env)])
           (value-of body (extend-env id val env)))]
+
+      ;; extention of let language
+      [minus-exp (exp) 
+        (let ([val (value-of exp env)])
+          (num-val (- 0 (expval->num val))))]      
     )))
 
 ;; ========== lexical specification and grammar ==========
@@ -129,10 +134,12 @@
   '([program (expression) a-program]
     [expression (number) const-exp]
     (expression (identifier) var-exp)
-    [expression ("zero?" expression) zero?-exp]  
-    [expression ("-" expression expression) diff-exp]
+    [expression ("zero?" "(" expression ")") zero?-exp]  
+    [expression ("-" "(" expression "," expression ")") diff-exp]
     [expression ("if" expression "then" expression "else" expression) if-exp]  
-    [expression ("let" identifier "=" expression "in" expression) let-exp]      
+    [expression ("let" identifier "=" expression "in" expression) let-exp]
+    ;; extention of let language
+    [expression ("minus" "(" expression ")") minus-exp]
 ))
 
 (sllgen:make-define-datatypes the-lexical-spec the-grammar)
@@ -147,7 +154,8 @@
 
 ;========== test ============
 (display (run "0"))
-(display (run "zero? 1"))
-(display (run "- 1 10"))
-(display (run "if zero? 1 then 1 else 2"))
-(display (run "let x = 10 in - 1 x"))
+(display (run "zero? (1)"))
+(display (run "- (1, 10)"))
+(display (run "if zero? (1) then 1 else 2"))
+(display (run "let x = 10 in - (1, x)"))
+(display (run "minus(-(minus(5),9))"))
