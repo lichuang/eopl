@@ -91,19 +91,18 @@
       [var-exp (id) (apply-env env id)]
 
       [zero?-exp (exp)
-        (let 
-          ([val (value-of exp env)]) 
-            (let ([num (expval->num val)]) 
-              (if (zero? num)
-                (bool-val #t)
-                (bool-val #f))))]
+        (let ([val (value-of exp env)]) 
+          (let ([num (expval->num val)]) 
+            (if (zero? num)
+              (bool-val #t)
+              (bool-val #f))))]
 
       [diff-exp (exp1 exp2) 
-        (let ([val1 (value-of exp1 env)])
-          (let ([val2 (value-of exp2 env)])
-            (let ([num1 (expval->num val1)]) 
-              (let ([num2 (expval->num val2)]) 
-                (num-val (- num1 num2))))))]
+        (let ([val1 (value-of exp1 env)]
+              [val2 (value-of exp2 env)])
+            (let ([num1 (expval->num val1)]
+                  [num2 (expval->num val2)]) 
+                (num-val (- num1 num2))))]
 
       [if-exp (condexp exp1 exp2) 
         (let ([val (value-of condexp env)])
@@ -118,7 +117,18 @@
       ;; extention of let language
       [minus-exp (exp) 
         (let ([val (value-of exp env)])
-          (num-val (- 0 (expval->num val))))]      
+          (num-val (- 0 (expval->num val))))]   
+
+      [binary-exp (op exp1 exp2) 
+        (let ([val1 (value-of exp1 env)]
+              [val2 (value-of exp2 env)])
+            (let ([num1 (expval->num val1)]
+                  [num2 (expval->num val2)]) 
+                (cond
+                  [(equal? op "+") (num-val (+ num1 num2))]
+                  [(equal? op "*") (num-val (* num1 num2))]
+                  [(equal? op "/") (num-val (quotient num1 num2))]
+                  [else (eopl:error "unknown binary operator ~s" op)])))]
     )))
 
 ;; ========== lexical specification and grammar ==========
@@ -126,6 +136,7 @@
   '([whitespace (whitespace) skip]
     [comment ("%" (arbno (not #\newline))) skip]
     [identifier (letter (arbno (or letter digit "_" "-" "?"))) symbol]
+    [binary-operator ((or "+" "*" "/")) string]
     [number (digit (arbno digit)) number]
     [number ("-" digit (arbno digit)) number]
 ))
@@ -140,6 +151,7 @@
     [expression ("let" identifier "=" expression "in" expression) let-exp]
     ;; extention of let language
     [expression ("minus" "(" expression ")") minus-exp]
+    [expression (binary-operator "(" expression "," expression ")") binary-exp]
 ))
 
 (sllgen:make-define-datatypes the-lexical-spec the-grammar)
@@ -153,9 +165,10 @@
     (value-of-program (scan&parse string))))
 
 ;========== test ============
-(display (run "0"))
-(display (run "zero? (1)"))
-(display (run "- (1, 10)"))
-(display (run "if zero? (1) then 1 else 2"))
-(display (run "let x = 10 in - (1, x)"))
-(display (run "minus(-(minus(5),9))"))
+;(display (run "0"))
+;(display (run "zero? (1)"))
+;(display (run "- (1, 10)"))
+;(display (run "if zero? (1) then 1 else 2"))
+;(display (run "let x = 10 in - (1, x)"))
+;(display (run "minus(-(minus(5),9))"))
+(display (run "/ (2, 10)"))
