@@ -166,10 +166,20 @@
             [(equal? op "null?") (
               cases expval val
                 (empty-list-val () (bool-val #t))
-                (else (bool-val #f)))]                              
+                (else (bool-val #f)))]
+            [else (eopl:error "unknown unary operator ~s" op)]                            
           ))]
 
       [empty-list-exp () (empty-list-val)]
+
+      [n-ary-exp (op exps) 
+        (cond
+            [(equal? op "list") (
+                let loop ([exps exps])
+                  (if (null? exps) (empty-list-val)
+                    (pair-val (value-of (car exps) env) (loop (cdr exps)))))]
+            [else (eopl:error "unknown n-ary operator ~s" op)]                          
+          )]
     )))
 
 ;; ========== lexical specification and grammar ==========
@@ -181,6 +191,7 @@
     [binary-operator ((or "cons")) string]
     [unary-operator ((or "car" "cdr" "null?")) string]
     [compare-operator ((or "equal?" "greater?" "less?")) string]
+    [n-ary-operator ("list") string]
     [number (digit (arbno digit)) number]
     [number ("-" digit (arbno digit)) number]
 ))
@@ -200,6 +211,7 @@
     [expression (compare-operator "(" expression "," expression ")") compare-exp]
     [expression (unary-operator "(" expression ")") unary-exp]
     [expression ("emptylist") empty-list-exp]
+    [expression (n-ary-operator "(" (separated-list expression ",") ")") n-ary-exp]
 ))
 
 (sllgen:make-define-datatypes the-lexical-spec the-grammar)
@@ -225,4 +237,5 @@
 ;(display (run "cdr (cons (2, 10))"))
 ;(display (run "null? (emptylist)"))
 ;(display (run "null? (cons (2, 10))"))
-(display (run "let x = 4 in cons(x, cons(cons(-(x,1), emptylist), emptylist))"))
+;(display (run "let x = 4 in cons(x, cons(cons(-(x,1), emptylist), emptylist))"))
+(display (run "let x = 4 in list(x, -(x,1), -(x,3))"))
