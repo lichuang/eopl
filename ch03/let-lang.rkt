@@ -129,6 +129,17 @@
                   [(equal? op "*") (num-val (* num1 num2))]
                   [(equal? op "/") (num-val (quotient num1 num2))]
                   [else (eopl:error "unknown binary operator ~s" op)])))]
+
+      [compare-exp (op exp1 exp2) 
+        (let ([val1 (value-of exp1 env)]
+              [val2 (value-of exp2 env)])
+            (let ([num1 (expval->num val1)]
+                  [num2 (expval->num val2)]) 
+                (cond
+                  [(equal? op "equal?") (bool-val (equal? num1 num2))]
+                  [(equal? op "greater?") (bool-val (> num1 num2))]
+                  [(equal? op "less?") (bool-val (< num1 num2))]
+                  [else (eopl:error "unknown compare operator ~s" op)])))]
     )))
 
 ;; ========== lexical specification and grammar ==========
@@ -137,6 +148,7 @@
     [comment ("%" (arbno (not #\newline))) skip]
     [identifier (letter (arbno (or letter digit "_" "-" "?"))) symbol]
     [binary-operator ((or "+" "*" "/")) string]
+    [compare-operator ((or "equal?" "greater?" "less?")) string]
     [number (digit (arbno digit)) number]
     [number ("-" digit (arbno digit)) number]
 ))
@@ -152,6 +164,7 @@
     ;; extention of let language
     [expression ("minus" "(" expression ")") minus-exp]
     [expression (binary-operator "(" expression "," expression ")") binary-exp]
+    [expression (compare-operator "(" expression "," expression ")") compare-exp]
 ))
 
 (sllgen:make-define-datatypes the-lexical-spec the-grammar)
@@ -171,4 +184,5 @@
 ;(display (run "if zero? (1) then 1 else 2"))
 ;(display (run "let x = 10 in - (1, x)"))
 ;(display (run "minus(-(minus(5),9))"))
-(display (run "/ (2, 10)"))
+;(display (run "/ (2, 10)"))
+(display (run "greater? (2, 10)"))
