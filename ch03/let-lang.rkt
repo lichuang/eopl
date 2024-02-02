@@ -134,17 +134,6 @@
               [(equal? op "cons") (pair-val val1 val2)]
               [else (eopl:error "unknown binary operator ~s" op)]))]
 
-      [binary-boolean-exp (op exp1 exp2) 
-        (let ([val1 (value-of exp1 env)]
-              [val2 (value-of exp2 env)])
-            (let ([num1 (expval->num val1)]
-                  [num2 (expval->num val2)]) 
-                (cond
-                  [(equal? op "equal?") (bool-val (equal? num1 num2))]
-                  [(equal? op "greater?") (bool-val (> num1 num2))]
-                  [(equal? op "less?") (bool-val (< num1 num2))]
-                  [else (eopl:error "unknown compare operator ~s" op)])))]
-
       [unary-exp (op exp) 
         (let ([val (value-of exp env)])
           (cond
@@ -159,6 +148,30 @@
             [else (eopl:error "unknown unary operator ~s" op)]                            
           ))]
 
+      [empty-list-exp () (empty-list-val)]
+
+      [n-ary-exp (op exps) 
+        (cond
+            [(equal? op "list") (
+                let loop ([exps exps])
+                  (if (null? exps) (empty-list-val)
+                    (pair-val (value-of (car exps) env) (loop (cdr exps)))))]
+            [else (eopl:error "unknown n-ary operator ~s" op)]                          
+          )]
+
+      [bool-exp (exp) (value-of-bool-exp exp env)]
+
+      [cond-exp (lexps rexps) 
+        (let loop ([lexps lexps] [rexps rexps])
+          (if (null? lexps) (eopl:error "none of conditions eval return true")
+            (if (expval->bool (value-of-bool-exp (car lexps) env)) (car rexps)
+              (loop (cdr lexps) (cdr rexps)))                
+          ))]
+    )))
+
+(define value-of-bool-exp
+  (lambda (exp env)
+    (cases bool-expression exp
       [unary-boolean-exp (op exp) 
         (let ([val (value-of exp env)])
           (cond 
@@ -172,16 +185,16 @@
             [else (eopl:error "unknown unary operator ~s" op)]                            
           ))]
 
-      [empty-list-exp () (empty-list-val)]
-
-      [n-ary-exp (op exps) 
-        (cond
-            [(equal? op "list") (
-                let loop ([exps exps])
-                  (if (null? exps) (empty-list-val)
-                    (pair-val (value-of (car exps) env) (loop (cdr exps)))))]
-            [else (eopl:error "unknown n-ary operator ~s" op)]                          
-          )]
+      [binary-boolean-exp (op exp1 exp2) 
+        (let ([val1 (value-of exp1 env)]
+              [val2 (value-of exp2 env)])
+            (let ([num1 (expval->num val1)]
+                  [num2 (expval->num val2)]) 
+                (cond
+                  [(equal? op "equal?") (bool-val (equal? num1 num2))]
+                  [(equal? op "greater?") (bool-val (> num1 num2))]
+                  [(equal? op "less?") (bool-val (< num1 num2))]
+                  [else (eopl:error "unknown compare operator ~s" op)])))]
     )))
 
 ;; ========== lexical specification and grammar ==========
@@ -210,11 +223,14 @@
     [expression ("minus" "(" expression ")") minus-exp]
     [expression (binary-numerical-operator "(" expression "," expression ")") binary-numerical-exp]
     [expression (binary-operator "(" expression "," expression ")") binary-exp]
-    [expression (binary-boolean-operator "(" expression "," expression ")") binary-boolean-exp]
     [expression (unary-operator "(" expression ")") unary-exp]
-    [expression (unary-boolean-operator "(" expression ")") unary-boolean-exp]
     [expression ("emptylist") empty-list-exp]
     [expression (n-ary-operator "(" (separated-list expression ",") ")") n-ary-exp]
+    [expression (bool-expression) bool-exp]
+    [expression ("cond" (arbno bool-expression "==>" expression) "end") cond-exp]
+
+    [bool-expression (unary-boolean-operator "(" expression ")") unary-boolean-exp]
+    [bool-expression (binary-boolean-operator "(" expression "," expression ")") binary-boolean-exp]
 ))
 
 (sllgen:make-define-datatypes the-lexical-spec the-grammar)
@@ -241,4 +257,6 @@
 ;(display (run "null? (emptylist)"))
 ;(display (run "null? (cons (2, 10))"))
 ;(display (run "let x = 4 in cons(x, cons(cons(-(x,1), emptylist), emptylist))"))
-(display (run "let x = 4 in list(x, -(x,1), -(x,3))"))
+;(display (run "let x = 4 in list(x, -(x,1), -(x,3))"))
+(display (run "cond zero?(1) ==> 1 zero?(0) ==> 2 end"))
+
