@@ -58,6 +58,10 @@
 (define-datatype expval expval?
   (num-val (num number?))
   (bool-val (boolean boolean?))
+  (pair-val 
+    (first expval?)
+    (second expval?))
+  (empty-list-val)
 )
 
 (define expval->num (lambda (expVal)
@@ -119,7 +123,7 @@
         (let ([val (value-of exp env)])
           (num-val (- 0 (expval->num val))))]   
 
-      [binary-exp (op exp1 exp2) 
+      [binary-numerical-exp (op exp1 exp2) 
         (let ([val1 (value-of exp1 env)]
               [val2 (value-of exp2 env)])
             (let ([num1 (expval->num val1)]
@@ -128,7 +132,14 @@
                   [(equal? op "+") (num-val (+ num1 num2))]
                   [(equal? op "*") (num-val (* num1 num2))]
                   [(equal? op "/") (num-val (quotient num1 num2))]
-                  [else (eopl:error "unknown binary operator ~s" op)])))]
+                  [else (eopl:error "unknown binary numerical operator ~s" op)])))]
+
+      [binary-exp (op exp1 exp2) 
+        (let ([val1 (value-of exp1 env)]
+              [val2 (value-of exp2 env)])
+            (cond
+              [(equal? op "cons") (pair-val val1 val2)]
+              [else (eopl:error "unknown binary operator ~s" op)]))]
 
       [compare-exp (op exp1 exp2) 
         (let ([val1 (value-of exp1 env)]
@@ -140,6 +151,25 @@
                   [(equal? op "greater?") (bool-val (> num1 num2))]
                   [(equal? op "less?") (bool-val (< num1 num2))]
                   [else (eopl:error "unknown compare operator ~s" op)])))]
+
+      [unary-exp (op exp) 
+        (let ([val (value-of exp env)])
+          (cond
+            [(equal? op "car") (
+              cases expval val
+                (pair-val (first second) first)
+                (else (eopl:error "~s is not pair-val" exp)))]
+            [(equal? op "cdr") (
+              cases expval val
+                (pair-val (first second) second)
+                (else (eopl:error "~s is not pair-val" exp)))]    
+            [(equal? op "null?") (
+              cases expval val
+                (empty-list-val () (bool-val #t))
+                (else (bool-val #f)))]                              
+          ))]
+
+      [empty-list-exp () (empty-list-val)]
     )))
 
 ;; ========== lexical specification and grammar ==========
@@ -147,7 +177,9 @@
   '([whitespace (whitespace) skip]
     [comment ("%" (arbno (not #\newline))) skip]
     [identifier (letter (arbno (or letter digit "_" "-" "?"))) symbol]
-    [binary-operator ((or "+" "*" "/")) string]
+    [binary-numerical-operator ((or "+" "*" "/")) string]
+    [binary-operator ((or "cons")) string]
+    [unary-operator ((or "car" "cdr" "null?")) string]
     [compare-operator ((or "equal?" "greater?" "less?")) string]
     [number (digit (arbno digit)) number]
     [number ("-" digit (arbno digit)) number]
@@ -163,8 +195,11 @@
     [expression ("let" identifier "=" expression "in" expression) let-exp]
     ;; extention of let language
     [expression ("minus" "(" expression ")") minus-exp]
+    [expression (binary-numerical-operator "(" expression "," expression ")") binary-numerical-exp]
     [expression (binary-operator "(" expression "," expression ")") binary-exp]
     [expression (compare-operator "(" expression "," expression ")") compare-exp]
+    [expression (unary-operator "(" expression ")") unary-exp]
+    [expression ("emptylist") empty-list-exp]
 ))
 
 (sllgen:make-define-datatypes the-lexical-spec the-grammar)
@@ -185,4 +220,9 @@
 ;(display (run "let x = 10 in - (1, x)"))
 ;(display (run "minus(-(minus(5),9))"))
 ;(display (run "/ (2, 10)"))
-(display (run "greater? (2, 10)"))
+;(display (run "greater? (2, 10)"))
+;(display (run "cons (2, 10)"))
+;(display (run "cdr (cons (2, 10))"))
+;(display (run "null? (emptylist)"))
+;(display (run "null? (cons (2, 10))"))
+(display (run "let x = 4 in cons(x, cons(cons(-(x,1), emptylist), emptylist))"))
