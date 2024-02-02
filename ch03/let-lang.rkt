@@ -94,13 +94,6 @@
 
       [var-exp (id) (apply-env env id)]
 
-      [zero?-exp (exp)
-        (let ([val (value-of exp env)]) 
-          (let ([num (expval->num val)]) 
-            (if (zero? num)
-              (bool-val #t)
-              (bool-val #f))))]
-
       [diff-exp (exp1 exp2) 
         (let ([val1 (value-of exp1 env)]
               [val2 (value-of exp2 env)])
@@ -141,7 +134,7 @@
               [(equal? op "cons") (pair-val val1 val2)]
               [else (eopl:error "unknown binary operator ~s" op)]))]
 
-      [compare-exp (op exp1 exp2) 
+      [binary-boolean-exp (op exp1 exp2) 
         (let ([val1 (value-of exp1 env)]
               [val2 (value-of exp2 env)])
             (let ([num1 (expval->num val1)]
@@ -163,10 +156,19 @@
               cases expval val
                 (pair-val (first second) second)
                 (else (eopl:error "~s is not pair-val" exp)))]    
+            [else (eopl:error "unknown unary operator ~s" op)]                            
+          ))]
+
+      [unary-boolean-exp (op exp) 
+        (let ([val (value-of exp env)])
+          (cond 
             [(equal? op "null?") (
               cases expval val
                 (empty-list-val () (bool-val #t))
                 (else (bool-val #f)))]
+            [(equal? op "zero?") (
+              if (zero? (expval->num val)) (bool-val #t)
+                  (bool-val #f))]
             [else (eopl:error "unknown unary operator ~s" op)]                            
           ))]
 
@@ -189,8 +191,9 @@
     [identifier (letter (arbno (or letter digit "_" "-" "?"))) symbol]
     [binary-numerical-operator ((or "+" "*" "/")) string]
     [binary-operator ((or "cons")) string]
-    [unary-operator ((or "car" "cdr" "null?")) string]
-    [compare-operator ((or "equal?" "greater?" "less?")) string]
+    [binary-boolean-operator ((or "equal?" "greater?" "less?")) string]
+    [unary-operator ((or "car" "cdr")) string]
+    [unary-boolean-operator ((or "null?" "zero?")) string]
     [n-ary-operator ("list") string]
     [number (digit (arbno digit)) number]
     [number ("-" digit (arbno digit)) number]
@@ -200,7 +203,6 @@
   '([program (expression) a-program]
     [expression (number) const-exp]
     (expression (identifier) var-exp)
-    [expression ("zero?" "(" expression ")") zero?-exp]  
     [expression ("-" "(" expression "," expression ")") diff-exp]
     [expression ("if" expression "then" expression "else" expression) if-exp]  
     [expression ("let" identifier "=" expression "in" expression) let-exp]
@@ -208,8 +210,9 @@
     [expression ("minus" "(" expression ")") minus-exp]
     [expression (binary-numerical-operator "(" expression "," expression ")") binary-numerical-exp]
     [expression (binary-operator "(" expression "," expression ")") binary-exp]
-    [expression (compare-operator "(" expression "," expression ")") compare-exp]
+    [expression (binary-boolean-operator "(" expression "," expression ")") binary-boolean-exp]
     [expression (unary-operator "(" expression ")") unary-exp]
+    [expression (unary-boolean-operator "(" expression ")") unary-boolean-exp]
     [expression ("emptylist") empty-list-exp]
     [expression (n-ary-operator "(" (separated-list expression ",") ")") n-ary-exp]
 ))
