@@ -110,9 +110,18 @@
             (value-of exp1 env)
             (value-of exp2 env)))]
 
-      [let-exp (id exp body) 
-        (let ([val (value-of exp env)])
-          (value-of body (extend-env id val env)))]
+      [let-exp (vars exps body) 
+        (let loop ([vars vars] [exps exps] [old-env env] [new-env env])
+          (if (null? vars) (value-of body new-env)
+            (let ([var (car vars)] [exp (car exps)])
+              (loop 
+                (cdr vars) 
+                (cdr exps) 
+                new-env 
+                (extend-env 
+                  var 
+                  (value-of exp old-env) 
+                  new-env)))))]
 
       ;; extention of let language
       [minus-exp (exp) 
@@ -241,7 +250,7 @@
     (expression (identifier) var-exp)
     [expression ("-" "(" expression "," expression ")") diff-exp]
     [expression ("if" expression "then" expression "else" expression) if-exp]  
-    [expression ("let" identifier "=" expression "in" expression) let-exp]
+    [expression ("let" (arbno identifier "=" expression) "in" expression) let-exp]
     ;; extention of let language
     [expression ("minus" "(" expression ")") minus-exp]
     [expression (binary-numerical-operator "(" expression "," expression ")") binary-numerical-exp]
@@ -285,4 +294,5 @@
 ;(display (run "cond zero?(1) ==> 1 zero?(0) ==> 2 end"))
 ;(display (run "if 0 then 1 else 2"))
 ;(display (run "cond (0) ==> 1 (1) ==> 2 end"))
-(display (run "print (let x = 4 in cons(x, cons(cons(-(x,1), emptylist), emptylist)))"))
+;(display (run "print (let x = 4 in cons(x, cons(cons(-(x,1), emptylist), emptylist)))"))
+(display (run "let x = 30 in let x = -(x,1) y = -(x,2) in -(x,y)"))
