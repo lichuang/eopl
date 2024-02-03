@@ -76,6 +76,9 @@
   (cases expval expVal 
     (bool-val (boolean)
       boolean)
+    (num-val (num)
+      (if (zero? num) #f
+        #t))
     (else 
       (eopl:error "~s is not bool-val" expVal)
 ))))
@@ -258,5 +261,6 @@
 ;(display (run "null? (cons (2, 10))"))
 ;(display (run "let x = 4 in cons(x, cons(cons(-(x,1), emptylist), emptylist))"))
 ;(display (run "let x = 4 in list(x, -(x,1), -(x,3))"))
-(display (run "cond zero?(1) ==> 1 zero?(0) ==> 2 end"))
+;(display (run "cond zero?(1) ==> 1 zero?(0) ==> 2 end"))
+(display (run "if 0 then 1 else 2"))
 
