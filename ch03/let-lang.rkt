@@ -144,10 +144,26 @@
               cases expval val
                 (pair-val (first second) first)
                 (else (eopl:error "~s is not pair-val" exp)))]
+
             [(equal? op "cdr") (
               cases expval val
                 (pair-val (first second) second)
-                (else (eopl:error "~s is not pair-val" exp)))]    
+                (else (eopl:error "~s is not pair-val" exp)))]
+
+            [(equal? op "print") (
+              let ([value (
+                let loop ([val val])
+                  (cases expval val
+                    (num-val (number) number)
+                    (bool-val (boolean) boolean)
+                    (empty-list-val () '())
+                    (pair-val (first second) (cons 
+                                                (loop first) 
+                                                (loop second)))
+                    ))])
+                (display value)
+                (num-val 1))]
+
             [else (eopl:error "unknown unary operator ~s" op)]                            
           ))]
 
@@ -212,7 +228,7 @@
     [binary-numerical-operator ((or "+" "*" "/")) string]
     [binary-operator ((or "cons")) string]
     [binary-boolean-operator ((or "equal?" "greater?" "less?")) string]
-    [unary-operator ((or "car" "cdr")) string]
+    [unary-operator ((or "car" "cdr" "print")) string]
     [unary-boolean-operator ((or "null?" "zero?")) string]
     [n-ary-operator ("list") string]
     [number (digit (arbno digit)) number]
@@ -269,4 +285,4 @@
 ;(display (run "cond zero?(1) ==> 1 zero?(0) ==> 2 end"))
 ;(display (run "if 0 then 1 else 2"))
 ;(display (run "cond (0) ==> 1 (1) ==> 2 end"))
-
+(display (run "print (let x = 4 in cons(x, cons(cons(-(x,1), emptylist), emptylist)))"))
