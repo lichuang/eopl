@@ -4,4 +4,4 @@ Exercise 3.8 [*] Add a numeric equality predicate equal? and numeric order predi
   and less? to the set of operations in the deﬁned language.
 |#
 
-; see let-lang.rkt `compare-exp` implementation
+; see let-lang.rkt `binary-boolean-exp` implementation

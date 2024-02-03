@@ -231,7 +231,7 @@
     [expression (n-ary-operator "(" (separated-list expression ",") ")") n-ary-exp]
     [expression (bool-expression) bool-exp]
     [expression ("cond" (arbno bool-expression "==>" expression) "end") cond-exp]
-
+    ;; bool-expression
     [bool-expression (unary-boolean-operator "(" expression ")") unary-boolean-exp]
     [bool-expression (binary-boolean-operator "(" expression "," expression ")") binary-boolean-exp]
 ))
@@ -263,4 +263,5 @@
 ;(display (run "let x = 4 in list(x, -(x,1), -(x,3))"))
 ;(display (run "cond zero?(1) ==> 1 zero?(0) ==> 2 end"))
 (display (run "if 0 then 1 else 2"))
+;(display (run "cond 0 ==> 1 1 ==> 2 end"))
 
