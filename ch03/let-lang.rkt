@@ -83,6 +83,14 @@
       (eopl:error "~s is not bool-val" expVal)
 ))))
 
+(define expval->pair (lambda (expVal)
+  (cases expval expVal 
+    (pair-val (first second)
+      (cons first second))
+    (else 
+      (eopl:error "~s is not a pair-val" expVal)
+))))
+
 ;; ========== interpreter ==========
 (define value-of-program
   (lambda (pgm)
@@ -110,31 +118,6 @@
             (value-of exp1 env)
             (value-of exp2 env)))]
 
-      [let-exp (vars exps body) 
-        (let loop ([vars vars] [exps exps] [old-env env] [new-env env])
-          (if (null? vars) (value-of body new-env)
-            (let ([var (car vars)] [exp (car exps)])
-              (loop 
-                (cdr vars) 
-                (cdr exps) 
-                new-env 
-                (extend-env 
-                  var 
-                  (value-of exp old-env) 
-                  new-env)))))]
-
-      [let*-exp (vars exps body) 
-        (let loop ([vars vars] [exps exps] [env env])
-          (if (null? vars) (value-of body env)
-            (let ([var (car vars)] [exp (car exps)])
-              (loop 
-                (cdr vars) 
-                (cdr exps) 
-                (extend-env 
-                  var 
-                  (value-of exp env) 
-                  env)))))]
-                
       ;; extention of let language
       [minus-exp (exp) 
         (let ([val (value-of exp env)])
@@ -207,6 +190,43 @@
             (if (expval->bool (value-of-bool-exp (car lexps) env)) (car rexps)
               (loop (cdr lexps) (cdr rexps)))                
           ))]
+
+      [let-exp (vars exps body) 
+        (let loop ([vars vars] [exps exps] [old-env env] [new-env env])
+          (if (null? vars) (value-of body new-env)
+            (let ([var (car vars)] [exp (car exps)])
+              (loop 
+                (cdr vars) 
+                (cdr exps) 
+                new-env 
+                (extend-env 
+                  var 
+                  (value-of exp old-env) 
+                  new-env)))))]
+
+      [let*-exp (vars exps body) 
+        (let loop ([vars vars] [exps exps] [env env])
+          (if (null? vars) (value-of body env)
+            (let ([var (car vars)] [exp (car exps)])
+              (loop 
+                (cdr vars) 
+                (cdr exps) 
+                (extend-env 
+                  var 
+                  (value-of exp env) 
+                  env)))))]
+
+      [unpack-exp (vars exp body) 
+        (let loop ([vars vars] [exps (value-of exp env)] [env env])
+          (if (null? vars) 
+            (cases expval exps
+              (empty-list-val () (value-of body env))
+              (else (eopl:error "too many values to unpack")))
+            (cases expval exps
+              (empty-list-val () (eopl:error "not enough values to unpack"))
+              (pair-val (first second) (loop (cdr vars) second (extend-env (car vars) first env)))
+              (else (eopl:error "expect a pair to unpack"))
+            )))]
     )))
 
 (define value-of-bool-exp
@@ -273,6 +293,7 @@
     [expression (bool-expression) bool-exp]
     [expression ("cond" (arbno bool-expression "==>" expression) "end") cond-exp]
     [expression ("let*" (arbno identifier "=" expression) "in" expression) let*-exp]
+    [expression ("unpack" (arbno identifier) "=" expression "in" expression) unpack-exp]
     ;; bool-expression
     [bool-expression ("(" expression ")") boolean-exp]
     [bool-expression (unary-boolean-operator "(" expression ")") unary-boolean-exp]
@@ -308,5 +329,6 @@
 ;(display (run "if 0 then 1 else 2"))
 ;(display (run "cond (0) ==> 1 (1) ==> 2 end"))
 ;(display (run "print (let x = 4 in cons(x, cons(cons(-(x,1), emptylist), emptylist)))"))
-(display (run "let x = 30 in let x = -(x,1) y = -(x,2) in -(x,y)"))
-(display (run "let x = 30 in let* x = -(x,1) y = -(x,2) in -(x,y)"))
+;(display (run "let x = 30 in let x = -(x,1) y = -(x,2) in -(x,y)"))
+;(display (run "let x = 30 in let* x = -(x,1) y = -(x,2) in -(x,y)"))
+(display (run "let u = 7 in unpack x y = cons(u,cons(3,emptylist)) in -(x,y)"))
