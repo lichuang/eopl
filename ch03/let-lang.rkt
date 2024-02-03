@@ -123,6 +123,18 @@
                   (value-of exp old-env) 
                   new-env)))))]
 
+      [let*-exp (vars exps body) 
+        (let loop ([vars vars] [exps exps] [env env])
+          (if (null? vars) (value-of body env)
+            (let ([var (car vars)] [exp (car exps)])
+              (loop 
+                (cdr vars) 
+                (cdr exps) 
+                (extend-env 
+                  var 
+                  (value-of exp env) 
+                  env)))))]
+                
       ;; extention of let language
       [minus-exp (exp) 
         (let ([val (value-of exp env)])
@@ -260,6 +272,7 @@
     [expression (n-ary-operator "(" (separated-list expression ",") ")") n-ary-exp]
     [expression (bool-expression) bool-exp]
     [expression ("cond" (arbno bool-expression "==>" expression) "end") cond-exp]
+    [expression ("let*" (arbno identifier "=" expression) "in" expression) let*-exp]
     ;; bool-expression
     [bool-expression ("(" expression ")") boolean-exp]
     [bool-expression (unary-boolean-operator "(" expression ")") unary-boolean-exp]
@@ -296,3 +309,4 @@
 ;(display (run "cond (0) ==> 1 (1) ==> 2 end"))
 ;(display (run "print (let x = 4 in cons(x, cons(cons(-(x,1), emptylist), emptylist)))"))
 (display (run "let x = 30 in let x = -(x,1) y = -(x,2) in -(x,y)"))
+(display (run "let x = 30 in let* x = -(x,1) y = -(x,2) in -(x,y)"))
