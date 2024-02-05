@@ -5,4 +5,4 @@ Exercise 3.19 [*] In many languages, procedures must be created and named
   by replacing the proc expression with a letproc expression.
 |#
 
-; see proc-lang.rkt `let*-exp`
+; see extended-proc-lang.rkt `letproc-exp`
