@@ -5,7 +5,7 @@ Exercise 3.13 [*] Change the values of the language so that integers are the onl
   Modify the predicates accordingly.
 |#
 
-; see let-lang.rkt 
+; see extended-let-lang.rkt 
 ; i have not changed the values of the language so that integers are the only expressed values,
 ; instead, i change function `expval->bool` to support number val.
 ; see test `run "if 0 then 1 else 2"`

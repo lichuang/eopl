@@ -5,4 +5,4 @@ Exercise 3.11 [*] In a real language, one might have many operators such as thos
   it is easy to add new operators.
 |#
 
-; see let-lang.rkt
+; see extended-let-lang.rkt

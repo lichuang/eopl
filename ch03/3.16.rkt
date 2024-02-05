@@ -17,4 +17,4 @@ in let x = -(x,1)
 should evaluate to 1.
 |#
 
-; see let-lang.rkt `let-exp`
+; see extended-let-lang.rkt `let-exp`

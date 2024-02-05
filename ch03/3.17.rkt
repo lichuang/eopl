@@ -10,4 +10,4 @@ in let* x = -(x,1) y = -(x,2)
 should evaluate to 2.
 |#
 
-; see let-lang.rkt `let*-exp`
+; see extended-let-lang.rkt `let*-exp`

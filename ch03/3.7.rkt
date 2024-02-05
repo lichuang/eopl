@@ -4,4 +4,4 @@ Exercise 3.7 [*] Extend the language by adding operators for addition, multiplic
   and integer quotient.
 |#
 
-; see let-lang.rkt `binary-numerical-exp` implementation
+; see extended-let-lang.rkt `binary-numerical-exp` implementation

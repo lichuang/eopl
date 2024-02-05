@@ -12,4 +12,4 @@ Exercise 3.9 [**] Add list processing operations to the language, including cons
   should return an expressed value that represents the list (4 (3)).
 |#
 
-; see let-lang.rkt
+; see extended-let-lang.rkt

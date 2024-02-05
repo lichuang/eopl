@@ -91,6 +91,7 @@
       (eopl:error "~s is not a pair-val" expVal)
 ))))
 
+
 ;; ========== interpreter ==========
 (define value-of-program
   (lambda (pgm)
@@ -331,4 +332,5 @@
 ;(display (run "print (let x = 4 in cons(x, cons(cons(-(x,1), emptylist), emptylist)))"))
 ;(display (run "let x = 30 in let x = -(x,1) y = -(x,2) in -(x,y)"))
 ;(display (run "let x = 30 in let* x = -(x,1) y = -(x,2) in -(x,y)"))
-(display (run "let u = 7 in unpack x y = cons(u,cons(3,emptylist)) in -(x,y)"))
+;(display (run "let u = 7 in unpack x y = cons(u,cons(3,emptylist)) in -(x,y)"))
+(display (run "let f = 10 in -(f,1)"))

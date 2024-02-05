@@ -13,4 +13,4 @@ so that unpack x y z = lst in ... binds x, y, and z to the elements of lst if ls
 should be 4.
 |#
 
-; see let-lang.rkt `unpack-exp`
+; see extended-let-lang.rkt `unpack-exp`

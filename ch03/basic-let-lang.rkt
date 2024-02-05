@@ -1,6 +1,6 @@
 #lang eopl
 
-;; Implementation of extended version of PROC language.
+;; Implementation of basic version of LET language.
 
 ;; ========== env ============
 (define empty-env-record
@@ -63,16 +63,9 @@
 (define init-env empty-env)
 
 ;; ========== Implementation of `expval` data type ==========
-(define-datatype proc proc?
-  (procedure 
-    (vars (list-of symbol?))
-    (body expression?) 
-    (env environment?)))
-
 (define-datatype expval expval?
   (num-val (num number?))
   (bool-val (boolean boolean?))
-  (proc-val (procedure proc?))
 )
 
 (define expval->num (lambda (expVal)
@@ -115,24 +108,20 @@
                   [num2 (expval->num val2)]) 
                 (num-val (- num1 num2))))]
 
+      [zero?-exp (exp) 
+        (let ([val (value-of exp env)])
+          (if (zero? (expval->num val)) (bool-val #t)
+            (bool-val #f)))]
+
       [if-exp (condexp exp1 exp2) 
         (let ([val (value-of condexp env)])
           (if (expval->bool val)
             (value-of exp1 env)
             (value-of exp2 env)))]
 
-      [let-exp (vars exps body) 
-        (let loop ([vars vars] [exps exps] [old-env env] [new-env env])
-          (if (null? vars) (value-of body new-env)
-            (let ([var (car vars)] [exp (car exps)])
-              (loop 
-                (cdr vars) 
-                (cdr exps) 
-                new-env 
-                (extend-env 
-                  var 
-                  (value-of exp old-env) 
-                  new-env)))))]
+      [let-exp (var exp body) 
+        (let ([val (value-of exp env)])
+          (value-of body (extend-env var  val env)))]
     )))
 
 ;; ========== lexical specification and grammar ==========
@@ -146,11 +135,13 @@
 
 (define the-grammar
   '([program (expression) a-program]
+    ; let grammar
     [expression (number) const-exp]
     (expression (identifier) var-exp)
     [expression ("-" "(" expression "," expression ")") diff-exp]
+    [expression ("zero?" "(" expression ")") zero?-exp]
     [expression ("if" expression "then" expression "else" expression) if-exp]  
-    [expression ("let" (arbno identifier "=" expression) "in" expression) let-exp]
+    [expression ("let" identifier "=" expression "in" expression) let-exp]
 ))
 
 (sllgen:make-define-datatypes the-lexical-spec the-grammar)
@@ -164,3 +155,4 @@
     (value-of-program (scan&parse string))))
 
 ;========== test ============
+(display (run "if zero? (1) then 1 else 2"))

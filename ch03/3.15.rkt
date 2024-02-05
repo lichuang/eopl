@@ -5,4 +5,4 @@ Exercise 3.15 [*] Extend the language by adding a new operation print that takes
   in our speciﬁcation framework?
 |#
 
-; see let-lang.rkt `unary-exp` op `print` case
+; see extended-let-lang.rkt `unary-exp` op `print` case

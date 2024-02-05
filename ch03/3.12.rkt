@@ -10,4 +10,4 @@ In this expression, the expressions on the left-hand sides of the ==>’s are ev
   should report an error.
 |#
 
-; see let-lang.rkt
+; see extended-let-lang.rkt

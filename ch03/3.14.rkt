@@ -9,4 +9,4 @@ Write suitable productions for Bool-exp and implement value-of-bool-exp. Where d
   exercise 3.8 wind up in this organization?
 |#
 
-; see let-lang.rkt `bool-expression` and `value-of-bool-exp` implementation
+; see extended-let-lang.rkt `bool-expression` and `value-of-bool-exp` implementation

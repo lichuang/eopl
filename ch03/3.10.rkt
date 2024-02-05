@@ -9,4 +9,4 @@ in list(x, -(x,1), -(x,3))
 should return an expressed value that represents the list (4 3 1).
 |#
 
-; see let-lang.rkt `n-ary-exp`
+; see extended-let-lang.rkt `n-ary-exp`
