@@ -138,7 +138,8 @@
 
       [let-exp (var exp body) 
         (let ([val (value-of exp env)])
-          (value-of body (extend-env var val env)))]
+          (let ([arg (extend-env var val env)])
+            (value-of body arg)))]
 
       [proc-exp (var body) 
         (proc-val (procedure var body env))]
@@ -199,4 +200,4 @@
 
 ;========== test ============
 ;(display (run "let f = proc (x) -(x,11) in (f 77)"))
-(display (run "letproc f = (x) -(x, 1) in (f 30)"))
+(display (run "let f = proc (x) proc (y) -(x, -(0, y)) in ((f 10) 20)"))
