@@ -268,7 +268,7 @@
     [comment ("%" (arbno (not #\newline))) skip]
     [identifier (letter (arbno (or letter digit "_" "-" "?"))) symbol]
     [binary-numerical-operator ((or "+" "*" "/")) string]
-    [binary-operator ((or "cons")) string]
+    [  ((or "cons")) string]
     [binary-boolean-operator ((or "equal?" "greater?" "less?")) string]
     [unary-operator ((or "car" "cdr" "print")) string]
     [unary-boolean-operator ((or "null?" "zero?")) string]
@@ -312,19 +312,26 @@
     (value-of-program (scan&parse string))))
 
 ;========== test ============
+;basic version of let lang
 (display (run "0"))
 (display (run "zero? (1)"))
 (display (run "- (1, 10)"))
 (display (run "if zero? (1) then 1 else 2"))
 (display (run "let x = 10 in - (1, x)"))
+;3.6
 (display (run "minus(-(minus(5),9))"))
+;3.7
 (display (run "/ (10, 2)"))
-;(display (run "greater? (2, 10)"))
-;(display (run "cons (2, 10)"))
-;(display (run "cdr (cons (2, 10))"))
-;(display (run "null? (emptylist)"))
-;(display (run "null? (cons (2, 10))"))
-;(display (run "let x = 4 in cons(x, cons(cons(-(x,1), emptylist), emptylist))"))
+;3.8
+(display (run "greater? (1,2)"))
+(display (run "less? (1,2)"))
+(display (run "equal? (1,2)"))
+;3.9
+(display (run "cons (2, 10)"))
+(display (run "cdr (cons (2, 10))"))
+(display (run "null? (emptylist)"))
+(display (run "null? (cons (2, 10))"))
+(display (run "let x = 4 in cons(x, cons(cons(-(x,1), emptylist), emptylist))"))
 ;(display (run "let x = 4 in list(x, -(x,1), -(x,3))"))
 ;(display (run "cond zero?(1) ==> 1 zero?(0) ==> 2 end"))
 ;(display (run "if 0 then 1 else 2"))
