@@ -1,6 +1,12 @@
-#lang eopl
+#|
+Exercise 3.21 [**] Extend the language of this section to include procedures with multiple arguments 
+  and calls with multiple operands, as suggested by the grammar
 
-;; Implementation of extended version of PROC language.
+  Expression ::= proc ( { Identiﬁer } ∗ ( , ) ) Expression 
+  Expression ::= (Expression { Expression } ∗ )
+|#
+
+#lang eopl
 
 ;; ========== env ============
 (define empty-env-record
@@ -146,11 +152,6 @@
       [call-exp (rator rands) 
         (let ([proc (expval->proc (value-of rator env))])
             (apply-procedure proc rands env))]
-
-      [letproc-exp (proc-name proc-var proc-body let-body) 
-        (let ([proc (proc-val (procedure proc-var proc-body env))])
-          (let ([new-env (extend-env proc-name proc env)])
-            (value-of let-body new-env)))]
     )))
 
 (define apply-procedure
@@ -182,11 +183,8 @@
     [expression ("zero?" "(" expression ")") zero?-exp]
     [expression ("if" expression "then" expression "else" expression) if-exp]  
     [expression ("let" identifier "=" expression "in" expression) let-exp]
-    ; basic proc grammar
     [expression ("proc" "(" (separated-list identifier ",") ")" expression) proc-exp]
     [expression ("(" expression (arbno expression) ")") call-exp]
-    ; extended proc grammar
-    [expression ("letproc" identifier "=" "(" identifier ")" expression "in" expression) letproc-exp]
 ))
 
 (sllgen:make-define-datatypes the-lexical-spec the-grammar)
@@ -200,6 +198,6 @@
     (value-of-program (scan&parse string))))
 
 ;========== test ============
-;(display (run "let f = proc (x) -(x,11) in (f 77)"))
-; 3.20
-;(display (run "let f = proc (x) proc (y) -(x, -(0, y)) in ((f 10) 20)"))
+(display (run "let f = proc (x,y) -(y,-(x,11)) in (f 77 44)"))
+
+

@@ -138,7 +138,8 @@
 
       [let-exp (var exp body) 
         (let ([val (value-of exp env)])
-          (value-of body (extend-env var  val env)))]
+          (let ([arg (extend-env var val env)])
+            (value-of body arg)))]
 
       [proc-exp (var body) 
         (proc-val (procedure var body env))]
