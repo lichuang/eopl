@@ -1,6 +1,10 @@
-#lang eopl
+#|
+Exercise 3.26 [**] In our data-structure representation of procedures, we have kept the 
+  entire environment in the closure. But of course all we need are the bindings for 
+  the free variables. Modify the representation of procedures to retain only the free variables.
+|#
 
-;; Implementation of extended version of PROC language.
+#lang eopl
 
 ;; ========== env ============
 (define empty-env-record
@@ -65,7 +69,8 @@
 ;; ========== Implementation of `expval` data type ==========
 (define-datatype proc proc?
   (procedure 
-    (vars (list-of symbol?))
+    ;(vars (list-of symbol?))
+    (var symbol?)
     (body expression?) 
     (env environment?))
 )
@@ -129,41 +134,33 @@
           (if (zero? (expval->num val)) (bool-val #t)
             (bool-val #f)))]
 
-      [if-exp (pred consq alte) 
-        (let ([val (value-of pred env)])
+      [if-exp (condexp exp1 exp2) 
+        (let ([val (value-of condexp env)])
           (if (expval->bool val)
-            (value-of consq env)
-            (value-of alte env)))]
+            (value-of exp1 env)
+            (value-of exp2 env)))]
 
       [let-exp (var exp body) 
         (let ([val (value-of exp env)])
           (let ([arg (extend-env var val env)])
             (value-of body arg)))]
 
-      [proc-exp (vars body) 
-        (proc-val (procedure vars body env))]
+      [proc-exp (var body) 
+        (proc-val (procedure var body env))]
 
-      [call-exp (rator rands) 
+      [call-exp (rator rand) 
         (let ([proc (expval->proc (value-of rator env))])
-            (apply-procedure proc rands env))]
-      #|
-      [letproc-exp (proc-name proc-var proc-body let-body) 
-        (let ([proc (proc-val (procedure proc-var proc-body env))])
-          (let ([new-env (extend-env proc-name proc env)])
-            (value-of let-body new-env)))]
-      |#
+          (apply-procedure proc (value-of rand env)))]
     )))
 
 (define apply-procedure
-  (lambda (procVal rands env)
+  (lambda (procVal value)
     (cases proc procVal
-      (procedure (proc-vars proc-body proc-env)
-        (let loop ([proc-vars proc-vars] [rands rands] [env proc-env])
-          (if (null? rands) (value-of proc-body env)
-            (loop (cdr proc-vars) (cdr rands) (extend-env (car proc-vars) (value-of (car rands) env) env)))))
-      (else
-        (eopl:error "~s is not proc-val" procVal))
-)))
+      (procedure (var body env)
+        (value-of body (extend-env var value env)))
+      (else 
+        (eopl:error "~s is not proc-val" procVal)
+    ))))
 
 ;; ========== lexical specification and grammar ==========
 (define the-lexical-spec
@@ -176,18 +173,16 @@
 
 (define the-grammar
   '([program (expression) a-program]
-    ; basic let grammar
+    ; let grammar
     [expression (number) const-exp]
     (expression (identifier) var-exp)
     [expression ("-" "(" expression "," expression ")") diff-exp]
     [expression ("zero?" "(" expression ")") zero?-exp]
     [expression ("if" expression "then" expression "else" expression) if-exp]  
     [expression ("let" identifier "=" expression "in" expression) let-exp]
-    ; basic proc grammar
-    [expression ("proc" "(" (separated-list identifier ",") ")" expression) proc-exp]
-    [expression ("(" expression (arbno expression) ")") call-exp]
-    ; extended proc grammar
-    ;[expression ("letproc" identifier "=" "(" identifier ")" expression "in" expression) letproc-exp]
+    ; proc grammar
+    [expression ("proc" "(" identifier ")" expression) proc-exp]
+    [expression ("(" expression expression ")") call-exp]
 ))
 
 (sllgen:make-define-datatypes the-lexical-spec the-grammar)
@@ -200,67 +195,52 @@
   (lambda (string)
     (value-of-program (scan&parse string))))
 
-;========== 3.26 run free ============
+;========== run free ============
 (define free-variables
   (lambda (expr bound)
     (cases expression expr
-      [const-exp (num) (empty-env)]
+           [const-exp (num) (empty-env)]
 
-      [var-exp (var)
-        (if (memq var bound)
-          (empty-env)
-          (apply-env bound var))]
+           [var-exp (var)
+              (if (memq var bound)
+                (empty-env)
+                (apply-env bound var))]
 
-      [diff-exp (exp1 exp2)
-        (append (free-variables exp1 bound)
-          (free-variables exp2 bound))]
+           [diff-exp (exp1 exp2)
+              (append (free-variables exp1 bound)
+                (free-variables exp2 bound))]
 
-      [zero?-exp (exp)
-        (free-variables exp bound)]
+           [zero?-exp (exp)
+              (free-variables exp bound)]
 
-      [if-exp (pred consq alte)
-        (append (free-variables pred bound)
-          (free-variables consq bound)
-          (free-variables alte bound))]
+           [if-exp (pred consq alte)
+              (append (free-variables pred bound)
+                (free-variables consq bound)
+                (free-variables alte bound))]
 
-      [let-exp (var value body)
-        (append (free-variables value bound)
+           [let-exp (var value body)
+              (append (free-variables value bound)
                 (free-variables body (cons var bound)))]
 
-      [proc-exp (vars body)
-        (let loop ([vars vars] [body body] [bound bound])
-          (if (null? vars) (free-variables body bound)
-            (loop (cdr vars) body (cons (car vars) bound)))
-        )]
+           [proc-exp (var body)
+              (append (free-variables body (cons var bound)))]
 
-      [call-exp (rator rands)
-        (let loop ([rator rator] [rands rands] [bound bound])
-          (if (null? rands) (free-variables rator bound)
-            (loop rator (cdr rands) (cons (car rands) bound))))]
+           [call-exp (rator rand)
+              (append (free-variables rator bound)
+                (free-variables rand bound))]
 )))
                              
 (define run-free
   (lambda (pgm)
     (cases program pgm
-      (a-program (expr)
-        (value-of expr (free-variables expr (init-env)))))))
+      (a-program (exp)
+        (value-of exp (free-variables exp (init-env)))))))
 
 (define run-free-v
   (lambda (prog)
     (run-free (scan&parse prog))))
 
 ;========== test ============
-;(display (run "let f = proc (x) -(x,11) in (f 77)"))
-;3.20
-(display "\n3.20:\n")
-(display (run "let f = proc (x) proc (y) -(x, -(0, y)) in ((f 10) 20)"))
-
-;3.21
-(display "\n3.21:\n")
-(display (run "let f = proc (x,y) -(y,-(x,11)) in (f 77 44)"))
-
-;3.26
-(display "\n3.26:\n")
 (display (run-free-v "7"))
 (display (run-free-v "zero? (1)"))
 (display (run-free-v "let a = 1 in zero? (a)"))
