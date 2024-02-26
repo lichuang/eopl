@@ -49,6 +49,7 @@
         (eopl:error "~s is not proc-val" procVal)
     ))))
 ;; ========== Implementation of `expval` data type ==========
+; procedure : Nameless-exp × Nameless-env → Proc
 (define-datatype proc proc?
   (procedure 
     (body expression?) 
@@ -95,6 +96,7 @@
 	   (a-program (exp1)
 		      (value-of exp1 (init-nameless-env))))))
 
+; translation-of : Exp × Senv → Nameless-exp
 (define translation-of
   (lambda (exp senv)
     (cases expression exp
@@ -136,6 +138,7 @@
         (eopl:error "invalid-source-expression ~s" exp)]
     )))
 
+; value-of : Nameless-exp x Nameless-env -> ExpVal
 (define value-of
   (lambda (exp nameless-env)
     (cases expression exp
@@ -214,6 +217,7 @@
   (sllgen:make-string-parser the-lexical-spec the-grammar))
 
 ;========== run ============
+; Program → Nameless-program
 (define translation-of-program
   (lambda (pgm)
     (cases program pgm

@@ -1,6 +1,6 @@
-#lang eopl
-
 ;; Implementation of basic version of LETREC language.
+
+#lang eopl
 
 ;; ========== env ============
 (define-datatype environment environment?
@@ -8,9 +8,9 @@
   [extend-env [var symbol?]
               [val expval?]
               [saved-env environment?]]
-  [extend-env-rec [proc-name symbol?]
-                  [var symbol?]
-                  [body expression?]
+  [extend-env-rec [ids (list-of symbol?)]
+                  [bvars (list-of (list-of symbol?))]
+                  [bodies (list-of expression?)]
                   [saved-env environment?]])
 
 (define init-env empty-env)
@@ -24,24 +24,18 @@
         (if (eqv? var search-sym)
           val
           (apply-env saved-env search-sym))]
-      [extend-env-rec (proc-name var body saved-env)
-        (if (eqv? proc-name search-sym)
-          (proc-val (procedure var body env))
-          (apply-env saved-env search-sym))])))
-
-(define apply-procedure
-  (lambda (procVal value)
-    (cases proc procVal
-      (procedure (var body env)
-        (value-of body (extend-env var value env)))
-      (else 
-        (eopl:error "~s is not proc-val" procVal)
-    ))))
+      [extend-env-rec (p-names b-vars p-bodies saved-env) 
+        (let loop ([p-names p-names] [b-vars b-vars] [p-bodies p-bodies])
+          (if (null? p-names)
+            (apply-env saved-env search-sym)
+            (if (eqv? search-sym (car p-names))
+              (proc-val (procedure (car b-vars) (car p-bodies) env))
+              (loop (cdr p-names) (cdr b-vars) (cdr p-bodies)))))])))
 
 ;; ========== Implementation of `expval` data type ==========
 (define-datatype proc proc?
   (procedure 
-    (var symbol?)
+    (vars (list-of symbol?))
     (body expression?) 
     (env environment?))
 )
@@ -91,7 +85,7 @@
     (cases expression exp
       [const-exp (num) (num-val num)]
 
-      [var-exp (var) (apply-env env var)]
+      [var-exp (id) (apply-env env id)]
 
       [diff-exp (exp1 exp2) 
         (let ([val1 (value-of exp1 env)]
@@ -116,17 +110,28 @@
           (let ([arg (extend-env var val env)])
             (value-of body arg)))]
 
-      [proc-exp (var body) 
-        (proc-val (procedure var body env))]
+      [proc-exp (vars body) 
+        (proc-val (procedure vars body env))]
 
-      [call-exp (rator rand) 
-        (let ([proc (expval->proc (value-of rator env))])
-          (apply-procedure proc (value-of rand env)))]
+      [call-exp (rator rands) 
+        (let ([proc (expval->proc (value-of rator env))]
+              [args (map (lambda (rand) (value-of rand env)) rands)])
+            (apply-procedure proc args))]
 
-      [letrec-exp (proc-name bound-var proc-body letrec-body) 
-        (value-of letrec-body
-          (extend-env-rec proc-name bound-var proc-body env))]
+      [letrec-exp (p-names b-vars p-bodies letrec-body) 
+        (value-of letrec-body (extend-env-rec p-names b-vars p-bodies env))]
     )))
+
+(define apply-procedure
+  (lambda (procVal args)
+    (cases proc procVal
+      [procedure (vars body saved-env) 
+        (let loop ([env saved-env] [vars vars] [args args])
+          (if (null? vars)
+            (value-of body env)
+            (loop (extend-env (car vars) (car args) env)
+                  (cdr vars)
+                  (cdr args))))])))
 
 ;; ========== lexical specification and grammar ==========
 (define the-lexical-spec
@@ -139,7 +144,7 @@
 
 (define the-grammar
   '([program (expression) a-program]
-    ; let grammar
+    ; basic let grammar
     [expression (number) const-exp]
     (expression (identifier) var-exp)
     [expression ("-" "(" expression "," expression ")") diff-exp]
@@ -147,10 +152,11 @@
     [expression ("if" expression "then" expression "else" expression) if-exp]  
     [expression ("let" identifier "=" expression "in" expression) let-exp]
     ; proc grammar
-    [expression ("proc" "(" identifier ")" expression) proc-exp]
-    [expression ("(" expression expression ")") call-exp]
+    [expression ("proc" "(" (separated-list identifier ",") ")" expression) proc-exp]
+    [expression ("(" expression (arbno expression) ")") call-exp]
     ; letrec grammar
-    [expression ("letrec" identifier "(" identifier ")" "=" expression "in" expression) letrec-exp]
+    [expression ("letrec" (arbno identifier "(" (separated-list identifier ",") ")" "=" expression) "in" expression)
+                letrec-exp]
 ))
 
 (sllgen:make-define-datatypes the-lexical-spec the-grammar)
@@ -164,11 +170,14 @@
     (value-of-program (scan&parse string))))
 
 ;========== test ============
-;(display (run "7"))
-;(display (run "zero? (1)"))
-;(display (run "let a = 1 in zero? (a)"))
-;(display (run "let a = 1 in -(a,2)"))
-;(display (run "if zero? (1) then 1 else 2"))
-;(display (run "let f = proc (x) -(x,11) in (f 77)"))
+; let lang
+(display (run "7"))
+(display (run "zero? (1)"))
+(display (run "let a = 1 in zero? (a)"))
+(display (run "let a = 1 in -(a,2)"))
+(display (run "if zero? (1) then 1 else 2"))
+; proc lang
+(display (run "let f = proc (x) -(x,11) in (f 77)"))
+(display (run "let f = proc (x,y) -(y,-(x,11)) in (f 77 44)"))
 ;letrec
 (display (run "letrec double (x) = if zero?(x) then 0 else -((double -(x,1)), -2) in (double 6)"))

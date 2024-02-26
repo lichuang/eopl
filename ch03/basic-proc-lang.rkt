@@ -88,11 +88,11 @@
           (if (zero? (expval->num val)) (bool-val #t)
             (bool-val #f)))]
 
-      [if-exp (condexp exp1 exp2) 
-        (let ([val (value-of condexp env)])
+      [if-exp (pred consq alte) 
+        (let ([val (value-of pred env)])
           (if (expval->bool val)
-            (value-of exp1 env)
-            (value-of exp2 env)))]
+            (value-of consq env)
+            (value-of alte env)))]
 
       [let-exp (var exp body) 
         (let ([val (value-of exp env)])
@@ -136,6 +136,7 @@
     [expression ("zero?" "(" expression ")") zero?-exp]
     [expression ("if" expression "then" expression "else" expression) if-exp]  
     [expression ("let" identifier "=" expression "in" expression) let-exp]
+    ; proc grammar
     [expression ("proc" "(" (separated-list identifier ",") ")" expression) proc-exp]
     [expression ("(" expression (arbno expression) ")") call-exp]
 ))
@@ -151,10 +152,12 @@
     (value-of-program (scan&parse string))))
 
 ;========== test ============
+; let lang
 (display (run "7"))
 (display (run "zero? (1)"))
 (display (run "let a = 1 in zero? (a)"))
 (display (run "let a = 1 in -(a,2)"))
 (display (run "if zero? (1) then 1 else 2"))
+; proc lang
 (display (run "let f = proc (x) -(x,11) in (f 77)"))
 (display (run "let f = proc (x,y) -(y,-(x,11)) in (f 77 44)"))
