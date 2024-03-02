@@ -1,4 +1,4 @@
-;; Implementation of basic version of explict-refs language.
+;; Implementation of basic version of implict-refs language.
 
 #lang eopl
 
@@ -6,14 +6,23 @@
 (define-datatype environment environment?
   [empty-env]
   [extend-env [var symbol?]
-              [val expval?]
+              [val reference?] ; new for implicit-refs
               [saved-env environment?]]
   [extend-env-rec [ids (list-of symbol?)]
                   [bvars (list-of (list-of symbol?))]
                   [bodies (list-of expression?)]
                   [saved-env environment?]])
 
-(define init-env empty-env)
+;(define init-env empty-env)
+(define init-env 
+  (lambda ()
+    (extend-env 
+     'i (newref (num-val 1))
+     (extend-env
+      'v (newref (num-val 5))
+      (extend-env
+       'x (newref (num-val 10))
+       (empty-env))))))
 
 (define apply-env
   (lambda (env search-sym)
@@ -25,12 +34,31 @@
           val
           (apply-env saved-env search-sym))]
       [extend-env-rec (p-names b-vars p-bodies saved-env) 
-        (let loop ([p-names p-names] [b-vars b-vars] [p-bodies p-bodies])
-          (if (null? p-names)
-            (apply-env saved-env search-sym)
-            (if (eqv? search-sym (car p-names))
-              (proc-val (procedure (car b-vars) (car p-bodies) env))
-              (loop (cdr p-names) (cdr b-vars) (cdr p-bodies)))))])))
+        (let ([n (location search-sym p-names)])
+          (if n
+            (newref
+              (proc-val 
+                (procedure
+                  (list-ref b-vars n)
+                  (list-ref p-bodies n)
+                  env)))
+                (apply-env saved-env search-sym)))])))
+
+;; location : Sym * Listof(Sym) -> Maybe(Int)
+;; (location sym syms) returns the location of sym in syms or #f is
+;; sym is not in syms.  We can specify this as follows:
+;; if (memv sym syms)
+;;   then (list-ref syms (location sym syms)) = sym
+;;   else (location sym syms) = #f
+(define location
+  (lambda (sym syms)
+    (cond
+      ([null? syms] #f)
+      ([eqv? sym (car syms)] 0)
+      ([location sym (cdr syms)]
+       => (lambda (n) 
+            (+ n 1)))
+      (else #f))))
 
 ;; ========== Implementation of `expval` data type ==========
 (define-datatype proc proc?
@@ -74,12 +102,6 @@
       (eopl:error "~s is not a proc-val" expVal)
 ))))
 
-(define expval->ref (lambda (expVal)
-  (cases expval expVal
-    (ref-val (ref) ref)
-    (else 
-      (eopl:error "~s is not a ref-val" expVal)))))
-
 ;; ========== store ==========
 (define empty-store (lambda () 
   '()))
@@ -101,34 +123,25 @@
   (integer? v)))
 
 ; newref : ExpVal → Ref 
-(define newref (lambda (val) 
-  (let ([next-ref (length the-store)]) 
-    (set! the-store (append the-store (list val))) next-ref)))
+(define newref
+  (lambda (val)
+    (let ([next-ref (length the-store)])
+      (set! the-store (append the-store (list val))) next-ref)))
 
 ; deref : Ref → ExpVal 
-(define deref (lambda (ref) 
-  (list-ref the-store ref)))
+(define deref
+  (lambda (ref)
+    (list-ref the-store ref)))
 
 ; setref! : Ref × ExpVal → Unspeciﬁed 
 ; usage: sets the-store to a state like the original, but with position ref containing val.
-(define setref!                       
+(define setref!
   (lambda (ref val)
     (set! the-store
-          (letrec
-              ((setref-inner
-                ;; returns a list like store1, except that position ref1
-                ;; contains val. 
-                (lambda (store1 ref1)
-                  (cond
-                    ((null? store1)
-                     (report-invalid-reference ref the-store))
-                    ((zero? ref1)
-                     (cons val (cdr store1)))
-                    (else
-                     (cons
-                      (car store1)
-                      (setref-inner
-                       (cdr store1) (- ref1 1))))))))
+          (letrec ([setref-inner (lambda (store1 ref1)
+                                   (cond [(null? store1) (report-invalid-reference ref the-store)]
+                                         [(zero? ref1) (cons val (cdr store1))]
+                                         [else (cons (car store1) (setref-inner (cdr store1) (- ref1 1)))]))])
             (setref-inner the-store ref)))))
 
 (define report-invalid-reference
@@ -148,9 +161,11 @@
 (define value-of
   (lambda (exp env)
     (cases expression exp
-      [const-exp (num) (num-val num)]
+      [const-exp (num) 
+        (num-val num)]
 
-      [var-exp (id) (apply-env env id)]
+      [var-exp (var) 
+        (deref (apply-env env var))]
 
       [diff-exp (exp1 exp2) 
         (let ([val1 (value-of exp1 env)]
@@ -171,9 +186,8 @@
             (value-of alte env)))]
 
       [let-exp (var exp body) 
-        (let ([val (value-of exp env)])
-          (let ([arg (extend-env var val env)])
-            (value-of body arg)))]
+        (let ([val (value-of exp env)]) 
+          (value-of body (extend-env var (newref val) env)))]
 
       [proc-exp (vars body) 
         (proc-val (procedure vars body env))]
@@ -192,21 +206,9 @@
             last-value
             (loop (value-of (car left-exps) env) (cdr left-exps))))]
 
-      [newref-exp (exp) 
-        (ref-val (newref (value-of exp env)))]
-
-      [deref-exp (exp)
-        (let ([value (value-of exp env)])
-          (let ([ref (expval->ref value)])
-            (deref ref)))]
-
-      [setref-exp (exp1 exp2) 
-        (let ([ref (expval->ref (value-of exp1 env))])
-          (let ([value (value-of exp2 env)])
-            (begin
-              (setref! ref value)
-              (num-val 23)))
-        )]
+      [assign-exp (var exp1)
+                  (setref! (apply-env env var) (value-of exp1 env))
+                  (num-val 27)]
     )))
 
 (define apply-procedure
@@ -216,7 +218,7 @@
         (let loop ([env saved-env] [vars vars] [args args])
           (if (null? vars)
             (value-of body env)
-            (loop (extend-env (car vars) (car args) env)
+            (loop (extend-env (car vars) (newref (car args)) env)
                   (cdr vars)
                   (cdr args))))])))
 
@@ -246,9 +248,7 @@
                 letrec-exp]
     ; explict ref grammar
     [expression ("begin" expression (arbno ";" expression) "end") begin-exp]
-    [expression ("newref" "(" expression ")") newref-exp]
-    [expression ("deref" "(" expression ")") deref-exp]
-    [expression ("setref" "(" expression "," expression ")") setref-exp]
+    [expression ("set" identifier "=" expression) assign-exp]
 ))
 
 (sllgen:make-define-datatypes the-lexical-spec the-grammar)
@@ -273,7 +273,7 @@
 (display (run "let f = proc (x,y) -(y,-(x,11)) in (f 77 44)"))
 ;letrec
 (display (run "letrec double (x) = if zero?(x) then 0 else -((double -(x,1)), -2) in (double 6)"))
-;explict-refs
+;implict-refs
 (display (run "begin 7; zero?(1) end"))
-(display (run "let x = newref(0) in deref(x)"))
-(display (run "let x = newref(0) in begin setref(x,1);deref(x) end"))
+;(display (run "let x = newref(0) in deref(x)"))
+;(display (run "let x = newref(0) in begin setref(x,1);deref(x) end"))
