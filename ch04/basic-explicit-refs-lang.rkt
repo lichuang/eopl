@@ -84,31 +84,52 @@
 (define empty-store (lambda () 
   '()))
 
-(define store? (list-of expval?))
+; usage: A Scheme variable containing the current state of the store. 
+; Initially set to a dummy value.
+(define the-store 'uninitialized)
+
+(define get-store (lambda () 
+  the-store))
+
+; initialize-store! : () → Unspeciﬁed 
+; usage: (initialize-store!) sets the-store to the empty store
+(define initialize-store! (lambda () 
+  (set! the-store (empty-store))))
 
 ; reference? : SchemeVal → Bool 
 (define reference? (lambda (v) 
   (integer? v)))
 
 ; newref : ExpVal → Ref 
-(define (newref val store)
-  (let ([next-ref (length store)]
-        [new-store (append store (list val))])
-    (cons next-ref new-store))) 
+(define newref (lambda (val) 
+  (let ([next-ref (length the-store)]) 
+    (set! the-store (append the-store (list val))) next-ref)))
 
 ; deref : Ref → ExpVal 
-(define deref (lambda (ref store) 
-  (list-ref store ref)))
+(define deref (lambda (ref) 
+  (list-ref the-store ref)))
 
 ; setref! : Ref × ExpVal → Unspeciﬁed 
 ; usage: sets the-store to a state like the original, but with position ref containing val.
-(define (setref! ref val store)
-  (let loop ([store1 store]
-             [ref1 ref])
-    (cond [(null? store1) (report-invalid-reference ref store)]
-          [(zero? ref1) (cons val (cdr store1))]
-          [else (cons (car store1)
-                      (loop (cdr store1) (- ref1 1)))])))
+(define setref!                       
+  (lambda (ref val)
+    (set! the-store
+          (letrec
+              ((setref-inner
+                ;; returns a list like store1, except that position ref1
+                ;; contains val. 
+                (lambda (store1 ref1)
+                  (cond
+                    ((null? store1)
+                     (report-invalid-reference ref the-store))
+                    ((zero? ref1)
+                     (cons val (cdr store1)))
+                    (else
+                     (cons
+                      (car store1)
+                      (setref-inner
+                       (cdr store1) (- ref1 1))))))))
+            (setref-inner the-store ref)))))
 
 (define report-invalid-reference
   (lambda (ref the-store)
@@ -117,99 +138,85 @@
                 ref the-store)))
 
 ;; ========== interpreter ==========
-(define-datatype answer answer?
-  [an-answer [val expval?]
-             [store store?]])
-
-(define value-of-answer
-  (lambda (answer-value)
-    (cases answer answer-value
-      [an-answer (val store) val])))
+(define value-of-program
+  (lambda (pgm)
+    (initialize-store!)               ; new for explicit refs.
+    (cases program pgm
+	   (a-program (exp1)
+		      (value-of exp1 (init-env))))))
 
 (define value-of
-  (lambda (exp env store)
+  (lambda (exp env)
     (cases expression exp
-      [const-exp (num) (an-answer (num-val num) store)]
+      [const-exp (num) (num-val num)]
 
-      [var-exp (var) (an-answer (apply-env env var) store)]
+      [var-exp (id) (apply-env env id)]
 
       [diff-exp (exp1 exp2) 
-        (let ([val1 (value-of-answer (value-of exp1 env store))]
-              [val2 (value-of-answer (value-of exp2 env store))])
+        (let ([val1 (value-of exp1 env)]
+              [val2 (value-of exp2 env)])
             (let ([num1 (expval->num val1)]
                   [num2 (expval->num val2)]) 
-                (an-answer (num-val (- num1 num2)) store)))]
+                (num-val (- num1 num2))))]
 
       [zero?-exp (exp) 
-        (let ([val (value-of-answer (value-of exp env store))])
-          (if (zero? (expval->num val)) 
-            (an-answer (bool-val #t) store)
-            (an-answer (bool-val #f) store)))]
+        (let ([val (value-of exp env)])
+          (if (zero? (expval->num val)) (bool-val #t)
+            (bool-val #f)))]
 
       [if-exp (pred consq alte) 
-        (let ([val (value-of-answer (value-of pred env store))])
+        (let ([val (value-of pred env)])
           (if (expval->bool val)
-            (value-of consq env store)
-            (value-of alte env store)))]
+            (value-of consq env)
+            (value-of alte env)))]
 
       [let-exp (var exp body) 
-        (cases answer (value-of exp env store)
-          [an-answer (val1 store1)
-            (value-of body (extend-env var val1 env) store1)])]
+        (let ([val (value-of exp env)])
+          (let ([arg (extend-env var val env)])
+            (value-of body arg)))]
 
       [proc-exp (vars body) 
-        (an-answer (proc-val (procedure vars body env)) store)]
+        (proc-val (procedure vars body env))]
 
       [call-exp (rator rands) 
-        (let ([proc (expval->proc (value-of-answer (value-of rator env store)))]
-              [args (map (lambda (rand) (value-of-answer (value-of rand env store))) rands)])
-            (an-answer (apply-procedure proc args store) store))]
+        (let ([proc (expval->proc (value-of rator env))]
+              [args (map (lambda (rand) (value-of rand env)) rands)])
+            (apply-procedure proc args))]
 
       [letrec-exp (p-names b-vars p-bodies letrec-body) 
-        (an-answer (value-of-answer (value-of letrec-body (extend-env-rec p-names b-vars p-bodies env) store)) store)]
+        (value-of letrec-body (extend-env-rec p-names b-vars p-bodies env))]
 
       [begin-exp (first-exp left-exps)
-        (let loop ([first-exp first-exp] [left-exps left-exps] [store store])
-          (let ([current-answer (value-of first-exp env store)])
-            (if (null? left-exps)
-              current-answer
-              (cases answer current-answer
-                [an-answer (val store1)
-                  (loop (car left-exps) (cdr left-exps) store1)
-              ]))))]
+        (let loop ([last-value (value-of first-exp env)] [left-exps left-exps])
+          (if (null? left-exps)
+            last-value
+            (loop (value-of (car left-exps) env) (cdr left-exps))))]
 
       [newref-exp (exp) 
-        (cases answer (value-of exp env store)
-          [an-answer (val store1)
-            (let* ([ref-and-store (newref val store1)]
-                   [ref (car ref-and-store)]
-                   [store1 (cdr ref-and-store)])
-              (an-answer (ref-val ref) store1))])]
+        (ref-val (newref (value-of exp env)))]
 
-      [deref-exp (exp) 
-        (cases answer (value-of exp env store)
-          [an-answer (val store1) 
-            (let ([ref (expval->ref val)])
-              (an-answer (deref ref store1) store1))])]
+
+      [deref-exp (exp)
+        (let ([value (value-of exp env)])
+          (let ([ref (expval->ref value)])
+            (deref ref)))]
 
       [setref-exp (exp1 exp2) 
-        (cases answer (value-of exp1 env store)
-          [an-answer (val1 store1)
-            (cases answer (value-of exp2 env store1)
-              [an-answer (val2 store2)
-                (let* ([ref (expval->ref val1)]
-                       [store2 (setref! ref val2 store2)])
-                       (an-answer (num-val 23) store2)
-                       )])])]
+        (let ([ref (expval->ref (value-of exp1 env))])
+          (let ([value (value-of exp2 env)])
+            (begin
+              (setref! ref value)
+              (num-val 23)))
+        )]
     )))
 
 (define apply-procedure
-  (lambda (procVal args store)
+  (lambda (procVal args)
     (cases proc procVal
       [procedure (vars body saved-env) 
         (let loop ([env saved-env] [vars vars] [args args])
           (if (null? vars)
-            (value-of-answer (value-of body env store))
+            (value-of body env)
             (loop (extend-env (car vars) (car args) env)
                   (cdr vars)
                   (cdr args))))])))
@@ -251,15 +258,9 @@
   (sllgen:make-string-parser the-lexical-spec the-grammar))
 
 ;========== run ============
-(define value-of-program
-  (lambda (pgm)
-    (cases program pgm
-	   (a-program (exp1)
-		      (value-of exp1 (init-env) (empty-store))))))
-
 (define run
   (lambda (string)
-    (value-of-answer (value-of-program (scan&parse string)))))
+    (value-of-program (scan&parse string))))
 
 ;========== test ============
 ; let lang
@@ -275,5 +276,5 @@
 (display (run "letrec double (x) = if zero?(x) then 0 else -((double -(x,1)), -2) in (double 6)"))
 ;explict-refs
 (display (run "begin 7; zero?(1) end"))
-(display (run "let x = newref(10) in deref(x)"))
-(display (run "let x = newref(11) in begin setref(x,1);deref(x) end"))
+(display (run "let x = newref(0) in deref(x)"))
+(display (run "let x = newref(0) in begin setref(x,1);deref(x) end"))
