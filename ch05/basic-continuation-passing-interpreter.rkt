@@ -75,18 +75,44 @@
 
 ;; ========== `continuation` data type ==========
 (define-datatype continuation continuation?
-  (end-cont) 
-  (zero1-cont 
-    (cont continuation?)) 
-  (if-test-cont 
+  [end-cont]
+
+  [diff1-cont
+    (exp2 expression?) 
+    (env environment?) 
+    (cont continuation?)]
+
+  [diff2-cont
+    (val1 expval?) 
+    (cont continuation?)]
+
+  [zero-cont 
+    (cont continuation?)]
+
+  [if-test-cont 
     (exp2 expression?) 
     (exp3 expression?) 
     (env environment?) 
-    (cont continuation?))
-  (let-exp-cont 
+    (cont continuation?)]
+
+  [let-exp-cont 
     (var symbol?) 
-    (body expression?) (env environment?) 
-    (cont continuation?)))
+    (body expression?) 
+    (env environment?) 
+    (cont continuation?)]
+  
+  [rator-cont
+    (rands (list-of expression?))
+    (env environment?) 
+    (cont continuation?)]
+
+  [rand-cont
+    (proc expval?)
+    (vals (list-of expval?))
+    (rands (list-of expression?))
+    (env environment?) 
+    (cont continuation?)]
+)
 
 ;; ========== interpreter ==========
 (define value-of-program
@@ -103,14 +129,10 @@
       [var-exp (var) (apply-cont cont (apply-env env var))]
 
       [diff-exp (exp1 exp2) 
-        (let ([val1 (value-of/k exp1 env cont)]
-              [val2 (value-of/k exp2 env cont)])
-            (let ([num1 (expval->num val1)]
-                  [num2 (expval->num val2)]) 
-                (num-val (- num1 num2))))]
+        (value-of/k exp1 env (diff1-cont exp2 env cont))]
 
       [zero?-exp (exp1)
-        (value-of/k exp1 env (zero1-cont cont))]
+        (value-of/k exp1 env (zero-cont cont))]
 
       [if-exp (pred consq alte) 
         (value-of/k pred env (if-test-cont consq alte env cont))]
@@ -122,15 +144,13 @@
         (apply-cont cont (proc-val (procedure var body env)))]
 
       [call-exp (rator rands) 
-        (let ([proc (expval->proc (value-of/k rator env cont))]
-              [args (map (lambda (rand) (value-of/k rand env cont)) rands)])
-            (apply-procedure proc args cont))]
+        (value-of/k rator env (rator-cont rands env cont))]
 
       [letrec-exp (p-names b-vars p-bodies letrec-body) 
         (value-of/k letrec-body (extend-env-rec p-names b-vars p-bodies env) cont)]
 )))
 
-(define apply-procedure
+(define apply-procedure/k
   (lambda (procVal args cont)
     (cases proc procVal
       [procedure (vars body saved-env) 
@@ -145,10 +165,19 @@
   (lambda (cont val) 
     (cases continuation cont
       [end-cont ()
-        (begin 
-        (eopl:printf "End of computation.~%") 
-        val)]
-      [zero1-cont (saved-cont)
+        ;(begin 
+        ;(eopl:printf "End of computation.~%") 
+        ;val)]
+        val]
+
+      [diff1-cont (exp2 env cont)
+        (value-of/k exp2 env (diff2-cont val cont))]
+
+      [diff2-cont (val1 cont)
+        (let ([num1 (expval->num val1)] [num2 (expval->num val)])
+          (apply-cont cont (num-val (- num1 num2))))]
+
+      [zero-cont (saved-cont)
         (apply-cont saved-cont (bool-val (zero? (expval->num val))))]
       
       [if-test-cont (exp2 exp3 saved-env saved-cont) 
@@ -158,6 +187,31 @@
       
       [let-exp-cont (var body saved-env saved-cont) 
         (value-of/k body (extend-env var val saved-env) saved-cont)]
+      
+      [rator-cont (rands saved-env saved-cont)
+        (if (null? rands)
+          (apply-procedure/k val '() saved-cont)
+          (value-of/k (car rands) 
+                      saved-env
+                      (rand-cont val 
+                                 '() 
+                                 (cdr rands)
+                                 saved-env
+                                 saved-cont)))]
+
+      [rand-cont (proc vals rands saved-env saved-cont)
+        (if (null? rands)
+          (apply-procedure/k 
+            (expval->proc proc) 
+            (reverse (cons val vals)) 
+            saved-cont)
+          (value-of/k (car rands) 
+                      saved-env
+                      (rand-cont proc 
+                                 (cons val vals) 
+                                 (cdr rands)
+                                 saved-env
+                                 saved-cont)))]
     )))
 
 ;; ========== lexical specification and grammar ==========
