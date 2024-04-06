@@ -1,4 +1,4 @@
-;; Implementation of basic version of Continuation-Passing Interpreter.
+;; Implementation of basic version of imprrative Interpreter.
 
 #lang eopl
 
@@ -115,56 +115,71 @@
 )
 
 ;; ========== interpreter ==========
+(define exp 'uninitialized) 
+(define env 'uninitialized) 
+(define cont 'uninitialized) 
+(define val 'uninitialized)
+(define vals 'uninitialized) 
+(define proc1 'uninitialized)
+
+;;value-of-program : Program → FinalAnswer 
 (define value-of-program
   (lambda (pgm) 
     (cases program pgm 
       (a-program (exp1) 
-        (value-of/k exp1 (init-env) (end-cont))))))
+        (set! cont (end-cont)) 
+        (set! exp exp1) 
+        (set! env (init-env)) 
+        (value-of/k)))))
 
-;Exp × Env × Cont → ExpVal
 (define value-of/k
-  (lambda (exp env cont) 
+  (lambda () 
     (cases expression exp
-      [const-exp (num) (apply-cont cont (num-val num))]
+      [const-exp (num) 
+        (set! val (num-val num))
+        (apply-cont)]
 
-      [var-exp (var) (apply-cont cont (apply-env env var))]
+      [var-exp (var) 
+        (set! val (apply-env env var))
+        (apply-cont)]
 
       [diff-exp (exp1 exp2) 
-        (value-of/k exp1 env (diff1-cont exp2 env cont))]
+        (set! cont (diff1-cont exp2 env cont))
+        (set! exp exp1)
+        (value-of/k)]
 
       [zero?-exp (exp1)
-        (value-of/k exp1 env (zero-cont cont))]
+        (set! exp exp1)
+        (set! cont (zero-cont cont))
+        (value-of/k)]
 
-      [if-exp (pred consq alte) 
-        (value-of/k pred env (if-test-cont consq alte env cont))]
+      [if-exp (pred consq alte)
+        (set! exp pred)
+        (set! cont (if-test-cont consq alte env cont))
+        (value-of/k)]
 
       [let-exp (var exp1 body) 
-        (value-of/k exp1 env (let-exp-cont var body env cont))]
+        (set! exp exp1)
+        (set! cont (let-exp-cont var body env cont))
+        (value-of/k)]
 
       [proc-exp (var body) 
-        (apply-cont cont (proc-val (procedure var body env)))]
+        (set! val (proc-val (procedure var body env)))
+        (apply-cont)]
 
       [call-exp (rator rands) 
-        (value-of/k rator env (rator-cont rands env cont))]
+        (set! cont (rator-cont rands env cont))
+        (set! exp rator)
+        (value-of/k)]
 
       [letrec-exp (p-names b-vars p-bodies letrec-body) 
-        (value-of/k letrec-body (extend-env-rec p-names b-vars p-bodies env) cont)]
-)))
+        (set! env (extend-env-rec p-names b-vars p-bodies env))
+        (set! exp letrec-body)
+        (value-of/k)]
+    )))
 
-(define apply-procedure/k
-  (lambda (procVal args cont)
-    (cases proc procVal
-      [procedure (vars body saved-env) 
-        (let loop ([env saved-env] [vars vars] [args args])
-          (if (null? vars)
-            (value-of/k body env cont)
-            (loop (extend-env (car vars) (car args) env)
-                  (cdr vars)
-                  (cdr args))))])))
-
-; Cont × ExpVal → FinalAnswer
 (define apply-cont
-  (lambda (cont val) 
+  (lambda () 
     (cases continuation cont
       [end-cont ()
         ;(begin 
@@ -172,49 +187,91 @@
         ;val)]
         val]
 
-      [diff1-cont (exp2 env cont)
-        (value-of/k exp2 env (diff2-cont val cont))]
+      [diff1-cont (exp2 saved-env saved-cont)
+        (set! exp exp2)
+        (set! cont (diff2-cont val saved-cont))
+        (set! env saved-env)
+        (value-of/k)]
 
-      [diff2-cont (val1 cont)
-        (let ([num1 (expval->num val1)] [num2 (expval->num val)])
-          (apply-cont cont (num-val (- num1 num2))))]
+      [diff2-cont (val1 saved-cont)
+        (let ([num1 (expval->num val1)] 
+              [num2 (expval->num val)])
+          (set! cont saved-cont)
+          (set! val (num-val (- num1 num2)))
+          (apply-cont))]
 
       [zero-cont (saved-cont)
-        (apply-cont saved-cont (bool-val (zero? (expval->num val))))]
-      
+        (set! cont saved-cont)
+        (set! val (bool-val (zero? (expval->num val))))
+        (apply-cont)]
+
       [if-test-cont (exp2 exp3 saved-env saved-cont) 
+        (set! cont saved-cont)
         (if (expval->bool val) 
-          (value-of/k exp2 saved-env saved-cont) 
-          (value-of/k exp3 saved-env saved-cont))]
+          (set! exp exp2)
+          (set! exp exp3))
+        (set! env saved-env)
+        (value-of/k)]
       
       [let-exp-cont (var body saved-env saved-cont) 
-        (value-of/k body (extend-env var val saved-env) saved-cont)]
-      
-      [rator-cont (rands saved-env saved-cont)
-        (if (null? rands)
-          (apply-procedure/k val '() saved-cont)
-          (value-of/k (car rands) 
-                      saved-env
-                      (rand-cont val 
-                                 '() 
-                                 (cdr rands)
-                                 saved-env
-                                 saved-cont)))]
+        (set! env (extend-env var val saved-env))
+        (set! exp body)
+        (set! cont saved-cont)
+        (value-of/k)]
 
-      [rand-cont (proc vals rands saved-env saved-cont)
-        (if (null? rands)
-          (apply-procedure/k 
-            (expval->proc proc) 
-            (reverse (cons val vals)) 
-            saved-cont)
-          (value-of/k (car rands) 
-                      saved-env
-                      (rand-cont proc 
-                                 (cons val vals) 
-                                 (cdr rands)
-                                 saved-env
-                                 saved-cont)))]
+      [rator-cont (rands saved-env saved-cont)
+                  (if (null? rands)
+                      (let ([rator-proc (expval->proc val)])
+                        (set! cont saved-cont)
+                        (set! proc1 rator-proc)
+                        (apply-procedure/k))
+                      (begin (set! cont (rand-cont val
+                                                   '()
+                                                   (cdr rands)
+                                                   saved-env
+                                                   saved-cont))
+                             (set! exp (car rands))
+                             (set! env saved-env)
+                             (value-of/k)))]
+
+      [rand-cont (rator-val rand-vals rand-exps saved-env saved-cont)
+                 (if (null? rand-exps)
+                     (let ([rator-proc (expval->proc rator-val)])
+                       (set! cont saved-cont)
+                       (set! proc1 rator-proc)
+                       (set! vals (reverse (cons val rand-vals)))
+                       (apply-procedure/k))
+                     (begin (set! cont (rand-cont rator-val
+                                                  (cons val rand-vals)
+                                                  (cdr rand-exps)
+                                                  saved-env
+                                                  saved-cont))
+                            (set! exp (car rand-exps))
+                            (set! env saved-env)
+                            (value-of/k)))]
     )))
+
+;apply-procedure/k : () → FinalAnswer 
+;usage: : relies on registers 
+; proc1 : Proc 
+; val : ExpVal 
+; cont : Cont
+(define apply-procedure/k
+  (lambda () 
+    (cases proc proc1 
+      [procedure (vars body saved-env) 
+        (set! exp body) 
+        (set! env (let loop ( [env saved-env]
+                              [vars vars]
+                              [vals vals])
+                    (if (null? vars)
+                      env
+                      (loop (extend-env (car vars)
+                                        (car vals)
+                                        env)
+                            (cdr vars)
+                            (cdr vals)))))
+        (value-of/k)])))
 
 ;; ========== lexical specification and grammar ==========
 (define the-lexical-spec

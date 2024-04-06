@@ -1,4 +1,4 @@
-;; Implementation of basic version of Continuation-Passing Interpreter.
+;; Implementation of basic version of trampolined Interpreter.
 
 #lang eopl
 
@@ -127,6 +127,7 @@
                                                 (init-env)
                                                 (end-cont)))])))
 
+;Exp × Env × Cont → Bounce
 (define value-of/k
   (lambda (exp env cont) 
     (cases expression exp
